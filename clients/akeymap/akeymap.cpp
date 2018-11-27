@@ -1,5 +1,6 @@
 #include <interception.h>
 #include <utils.h>
+#include <Windows.h>
 
 #include <iostream>
 
@@ -16,28 +17,29 @@ enum ScanCode
     SCANCODE_Z      = 0x2C,
     SCANCODE_RSLASH = 0x35,   // or 2B on iso board
     SCANCODE_RSHIFT = 0x36,
-    SCANCODE_LWIN = 0x5b, //todo
-    SCANCODE_LALT = 0x38,
+    SCANCODE_LCTRL  = 0x1d,
+    SCANCODE_LWIN   = 0x5b,
+    SCANCODE_LALT   = 0x38,
 };
-
-InterceptionKeyStroke del_down = { 0x53, INTERCEPTION_KEY_DOWN | INTERCEPTION_KEY_E0 };
 
 int main()
 {
     InterceptionContext context;
     InterceptionDevice device;
-    InterceptionKeyStroke stroke;
+    InterceptionKeyStroke stroke, strokeM1, strokeM2;
     bool remapSlashShift = false;
     bool remapFlipZy = false;
     bool remapFlipWinAlt = false;
+
+    cout << "setup... " << endl;
+    Sleep(500);
 
     raise_process_priority();
     context = interception_create_context();
     interception_set_filter(context, interception_is_keyboard, INTERCEPTION_FILTER_KEY_ALL);
 
-    {  //SETUP
-        cout << "setup... " << endl;
-
+#pragma region setup
+    {  
         cout << endl << "Press Shift";
         interception_receive(context, device = interception_wait(context), (InterceptionStroke *)&stroke, 1);
         interception_receive(context, device = interception_wait(context), (InterceptionStroke *)&stroke, 1);
@@ -56,19 +58,30 @@ int main()
         if (stroke.code == SCANCODE_LALT)
             remapFlipWinAlt = true;
 
-        interception_receive(context, device = interception_wait(context), (InterceptionStroke *)&stroke, 1);
         cout << endl << endl << (remapSlashShift ? "ON :" : "OFF:") << "Slashes -> Shift ";
         cout << endl << (remapFlipZy ? "ON :" : "OFF:") << "Z<->Y ";
         cout << endl << (remapFlipWinAlt ? "ON :" : "OFF:") << "ALT<->WIN ";
-        cout << endl << "running... Press ESC to stop" << endl;
+
+        cout << endl <<  endl << "akeymap running..." << "Press left (CTRL + ALT + ESC) to stop." << endl;
+
+        strokeM1 = stroke;
+        strokeM2 = stroke;
+
     }
+#pragma endregion setup 
+
 
     while (interception_receive(context, device = interception_wait(context), (InterceptionStroke *)&stroke, 1) > 0)
     {
-        if (stroke.code == SCANCODE_ESC) 
+        if (stroke.code == SCANCODE_ESC &&
+            strokeM1.code == SCANCODE_LALT &&
+            strokeM2.code == SCANCODE_LCTRL)
+        {
             break;
+        }
 
-        cout << " " << hex << stroke.code;
+        if(DEBUGMODE)
+            cout << " " << hex << stroke.code;
 
         switch (stroke.code)
         {
@@ -97,7 +110,12 @@ int main()
                     stroke.code = SCANCODE_LWIN;
                 break;
         }
+        
+        strokeM2 = strokeM1;
+        strokeM1 = stroke;
+
         interception_send(context, device, (InterceptionStroke *)&stroke, 1);
+
     }
 
     interception_destroy_context(context);
