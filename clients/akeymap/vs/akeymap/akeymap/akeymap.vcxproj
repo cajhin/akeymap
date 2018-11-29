@@ -22,8 +22,10 @@
     <ClInclude Include="..\..\..\..\interception.h" />
     <ClInclude Include="..\..\..\..\utils.h" />
     <ClInclude Include="..\..\..\akeymap.h" />
+    <ClInclude Include="..\..\..\scancodes.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\library\interception.c" />
     <ClCompile Include="..\..\..\..\utils.c" />
     <ClCompile Include="..\..\..\akeymap.cpp" />
   </ItemGroup>
@@ -79,10 +81,10 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <NMakeOutput>akeymap.exe</NMakeOutput>
     <NMakePreprocessorDefinitions>_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeIncludeSearchPath>C:\wsl\home\git\Interception\library;C:\wsl\home\git\Interception\clients;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+    <NMakeIncludeSearchPath>C:\wsl\home\git\Interception\clients\akeymap;C:\wsl\home\git\Interception\library;C:\wsl\home\git\Interception\clients;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
     <NMakeBuildCommandLine>C:\wsl\home\git\Interception\clients\akeymap\buildit.cmd</NMakeBuildCommandLine>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
-    <SourcePath>C:\wsl\home\git\Interception\clients;C:\wsl\home\git\Interception\library;$(SourcePath)</SourcePath>
+    <IncludePath>C:\appWinDDK\7600.16385.1\inc\api;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <SourcePath>C:\wsl\home\git\Interception\clients\akeymap;C:\wsl\home\git\Interception\clients;C:\wsl\home\git\Interception\library;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <NMakeOutput>akeymap.exe</NMakeOutput>
