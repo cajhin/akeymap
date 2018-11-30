@@ -19,6 +19,19 @@ enum KEYSTATE
 
 int main()
 {
+    /*
+    time_t timer;
+    char buffer[26];
+    struct tm* tm_info;
+
+    time(&timer);
+    tm_info = localtime(&timer);
+
+    strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
+    puts(buffer);
+    */
+
+
     const int MAX_KEYMACRO_LENGTH = 100;
 
     InterceptionContext context;
@@ -28,10 +41,12 @@ int main()
     bool modeDebug = true;
     bool modeSlashShift = true;
     bool modeFlipZy = true;
-    bool modeFlipAltWin = false;
+    bool modeFlipAltWin = true;
 
     int  layer = 1;
     bool capsDown = false;
+    bool capsToggled = false;
+
     InterceptionKeyStroke keyMacro[MAX_KEYMACRO_LENGTH];
     int keyMacroLength = 0;
     InterceptionKeyStroke tmpstroke;
@@ -90,9 +105,8 @@ int main()
 #pragma region core commands
         bool blockKey = false;
 
-        //normalize extended scancodes (state -> code.bit7)
+        //normalize extended scancodes (state.bit1 -> code.bit7)
         unsigned short scancode = stroke.code;
-
         if (stroke.state & 2)  //extended code, so I set the high bit of the code. Assuming Interception never sends code > 0x7F
         {
             if (scancode & 0x80)
@@ -158,8 +172,13 @@ int main()
         }
         else if (scancode == SC_CAPS)
         {
+
             if (stroke.state == KEYSTATE_UP)
+            {
                 capsDown = false;
+                if (strokeM1.code == SC_CAPS)
+                    capsToggled = !capsToggled;
+            }
             else if (stroke.state == KEYSTATE_DOWN)
                 capsDown = true;
             strokeM2 = strokeM1;
@@ -194,8 +213,9 @@ int main()
                 break;
             }
         }
+
         //pass 2: key remapping
-        switch (scancode)
+        else switch (scancode)
         {
         case SC_Z:
             if (modeFlipZy)
@@ -229,6 +249,19 @@ int main()
             if (modeFlipAltWin)
                 scancode = SC_LWIN;
             break;
+        }
+
+        // pass 3: layout-dependent mappings
+        if (capsToggled)
+        {
+            switch (scancode)
+            {
+            case SC_O:
+                int fourscancodes[] = { SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD4, SC_NUMPAD6 };
+                createMacroAscii(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD4, SC_NUMPAD6, keyMacro, keyMacroLength);
+                break;
+            }
+            capsToggled = false;
         }
 
         //SEND
@@ -278,6 +311,28 @@ int main()
 
     cout << endl << "bye" << endl;
     return 0;
+}
+
+//virtually push Alt+Numpad 0 1 2 4  for special characters
+void createMacroAscii(int a, int b, int c, int d, InterceptionKeyStroke  keyMacro[100], int &keyMacroLength)
+{
+    unsigned char fsc[] = { (unsigned char)a, (unsigned char)b, (unsigned char)c, (unsigned char)d };
+    int idx = 0;
+    keyMacro[idx].code = SC_RALT;
+    keyMacro[idx++].state = KEYSTATE_DOWN;
+    for (int i = 0; i < 4; i++)
+    {
+        keyMacro[idx].code = fsc[i];
+        keyMacro[idx++].state = KEYSTATE_DOWN;
+        keyMacro[idx].code = fsc[i];
+        keyMacro[idx++].state = KEYSTATE_DOWN;
+    }
+    keyMacro[idx].code = SC_RALT;
+    keyMacro[idx++].state = KEYSTATE_UP;
+    if (idx = 10)
+        keyMacroLength = idx;  //should always be 10
+    else
+        cout << "ERROR: Wrong length of Ascii macro?";
 }
 
 void createMacroKeypad(InterceptionKeyStroke stroke, InterceptionKeyStroke  keyMacro[100], int &keyMacroLength)
