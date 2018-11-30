@@ -32,10 +32,10 @@
     <ClCompile Include="..\..\..\akeymap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\utils.c">
+    <ClCompile Include="..\..\..\..\..\library\interception.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\..\library\interception.c">
+    <ClCompile Include="..\..\..\utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

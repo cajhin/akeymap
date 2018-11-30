@@ -26,7 +26,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\..\library\interception.c" />
-    <ClCompile Include="..\..\..\..\utils.c" />
+    <ClCompile Include="..\..\..\utils.c" />
     <ClCompile Include="..\..\..\akeymap.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

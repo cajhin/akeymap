@@ -17,6 +17,12 @@ enum KEYSTATE
     KEYSTATE_EXT_UP = 3,
 };
 
+bool modeDebug = true;
+
+void normalizeKeyStroke(InterceptionKeyStroke &keystroke);
+void resetAllModifiers(InterceptionContext context, InterceptionDevice device);
+void sendStroke(InterceptionContext context, InterceptionDevice device, InterceptionKeyStroke &stroke);
+
 int main()
 {
     /*
@@ -38,10 +44,11 @@ int main()
     InterceptionDevice device;
     InterceptionKeyStroke stroke, strokeM1, strokeM2;
 
-    bool modeDebug = true;
+    unsigned short modiState = 0;
+
     bool modeSlashShift = true;
     bool modeFlipZy = true;
-    bool modeFlipAltWin = true;
+    bool modeFlipAltWin = false;
 
     int  layer = 1;
     bool capsDown = false;
@@ -80,13 +87,12 @@ int main()
         interception_receive(context, device = interception_wait(context), (InterceptionStroke *)&stroke, 1);
         if (stroke.code == SC_LALT)
             modeFlipAltWin = true;
-
+*/
         cout << endl << endl << (modeSlashShift ? "ON :" : "OFF:") << "Slashes -> Shift ";
         cout << endl << (modeFlipZy ? "ON :" : "OFF:") << "Z<->Y ";
         cout << endl << (modeFlipAltWin ? "ON :" : "OFF:") << "ALT<->WIN ";
-
         cout << endl <<  endl << "akeymap running..." << "Press left (CTRL + CAPS + ESC) to stop." << endl;
-        */
+
         strokeM1.code = 0;
         strokeM2.code = 0;
 
@@ -137,6 +143,11 @@ int main()
                 layer = 1;
                 cout << endl << endl << "LAYER 1 active" << endl;
                 break;
+            case SC_R:
+                resetAllModifiers(context, device);
+                capsDown = false;
+                capsToggled = false;
+                break;
             case SC_D:
                 modeDebug = !modeDebug;
                 cout << endl << endl << "DEBUG mode: " << (modeDebug ? "ON" : "OFF") << endl;
@@ -158,8 +169,8 @@ int main()
                 cout << endl << endl << "Flip ALT<>WIN mode: " << (modeFlipAltWin ? "ON" : "OFF") << endl;
                 break;
             }
-            stroke.state++; //send UP for the last stroke in case the key itself is remapped
-            interception_send(context, device, (InterceptionStroke *)&stroke, 1);
+//            stroke.state++; //send UP for the last stroke in case the key itself is remapped
+//            interception_send(context, device, (InterceptionStroke *)&stroke, 1);
             continue;
         }
 #pragma endregion core commands
@@ -169,99 +180,131 @@ int main()
 
         if (layer == 0)
         {
+            interception_send(context, device, (InterceptionStroke *)&stroke, 1);
+            continue;
         }
-        else if (scancode == SC_CAPS)
-        {
 
-            if (stroke.state == KEYSTATE_UP)
-            {
+
+        if(stroke.code == SC_CAPS) {
+            if (stroke.state == KEYSTATE_UP) {
                 capsDown = false;
                 if (strokeM1.code == SC_CAPS)
                     capsToggled = !capsToggled;
-            }
-            else if (stroke.state == KEYSTATE_DOWN)
+            } else if (stroke.state == KEYSTATE_DOWN)
                 capsDown = true;
             strokeM2 = strokeM1;
             strokeM1 = stroke;
             continue;
         }
-        else if (capsDown)
+
+
+        // pass 3: layout-dependent mappings
+        if (capsDown)
         {
             switch (scancode)
             {
-            case SC_H:
-                scancode = SC_BACK;
-                break;
-            case SC_BACKSLASH:
-                scancode = SC_SLASH;
-                break;
-            case SC_J:
-            case SC_L:
-            case SC_K:
-            case SC_I:
-            case SC_O:
-            case SC_SEMICOLON:
-            case SC_DOT:
-            case SC_Y:
-            case SC_U:
-            case SC_N:
-            case SC_M:
-                if (stroke.state & 1)    // ignore KEYSTATE_UP, macros must be complete
-                    blockKey = true;
-                else
-                    createMacroKeypad(stroke, keyMacro, keyMacroLength);
-                break;
+                case SC_H:
+                    scancode = SC_BACK;
+                    break;
+                case SC_BACKSLASH:
+                    scancode = SC_SLASH;
+                    break;
+                case SC_J:
+                case SC_L:
+                case SC_K:
+                case SC_I:
+                case SC_O:
+                case SC_SEMICOLON:
+                case SC_DOT:
+                case SC_Y:
+                case SC_U:
+                case SC_N:
+                case SC_M:
+                    if (stroke.state & 1)    // ignore KEYSTATE_UP, macros must be complete
+                        blockKey = true;
+                    else
+                        createMacroKeypad(stroke, keyMacro, keyMacroLength);
+                    break;
             }
         }
 
-        //pass 2: key remapping
+        //key remapping
         else switch (scancode)
+            {
+                case SC_Z:
+                    if (modeFlipZy)
+                        scancode = SC_Y;
+                    break;
+                case SC_Y:
+                    if (modeFlipZy)
+                        scancode = SC_Z;
+                    break;
+                case SC_LBSLASH:
+                    if (modeSlashShift)
+                        scancode = SC_LSHIFT;
+                    break;
+                case SC_SLASH:
+                    if (modeSlashShift && stroke.state < 2)  //do not remap keypad slash (state 2+3)
+                        scancode = SC_RSHIFT;
+                    break;
+                case SC_LWIN:
+                    if (modeFlipAltWin)
+                        scancode = SC_LALT;
+                    break;
+                case SC_RWIN:
+                    if (modeFlipAltWin)
+                        scancode = SC_RALT;
+                    break;
+                case SC_LALT:
+                    if (modeFlipAltWin)
+                        scancode = SC_LWIN;
+                    break;
+                case SC_RALT:
+                    if (modeFlipAltWin)
+                        scancode = SC_LWIN;
+                    break;
+            }
+
+        switch(scancode)
         {
-        case SC_Z:
-            if (modeFlipZy)
-                scancode = SC_Y;
-            break;
-        case SC_Y:
-            if (modeFlipZy)
-                scancode = SC_Z;
-            break;
-        case SC_LBSLASH:
-            if (modeSlashShift)
-                scancode = SC_LSHIFT;
-            break;
-        case SC_SLASH:
-            if (modeSlashShift && stroke.state < 2)  //do not remap keypad slash (state 2+3)
-                scancode = SC_RSHIFT;
-            break;
-        case SC_LWIN:
-            if (modeFlipAltWin)
-                scancode = SC_LALT;
-            break;
-        case SC_RWIN:
-            if (modeFlipAltWin)
-                scancode = SC_RALT;
-            break;
-        case SC_LALT:
-            if (modeFlipAltWin)
-                scancode = SC_LWIN;
-            break;
-        case SC_RALT:
-            if (modeFlipAltWin)
-                scancode = SC_LWIN;
-            break;
+            case SC_LSHIFT:
+                stroke.state & 1 ? modiState &= ~BITMASK_LSHIFT : modiState |= BITMASK_LSHIFT;
+            case SC_RSHIFT:
+                stroke.state & 1 ? modiState &= ~BITMASK_RSHIFT : modiState |= BITMASK_RSHIFT;
+
         }
 
-        // pass 3: layout-dependent mappings
         if (capsToggled)
         {
             switch (scancode)
             {
-            case SC_O:
-                int fourscancodes[] = { SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD4, SC_NUMPAD6 };
-                createMacroAscii(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD4, SC_NUMPAD6, keyMacro, keyMacroLength);
-                break;
+                case SC_O:
+                    if(IS_SHIFT_DOWN)
+                        createMacroAscii(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD1, SC_NUMPAD4, keyMacro, keyMacroLength);
+                    else
+                        createMacroAscii(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD4, SC_NUMPAD6, keyMacro, keyMacroLength);
+                    break;
+                case SC_A:
+                    if(IS_SHIFT_DOWN)
+                        createMacroAscii(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD9, SC_NUMPAD6, keyMacro, keyMacroLength);
+                    else
+                        createMacroAscii(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD2, SC_NUMPAD8, keyMacro, keyMacroLength);
+                    break;
+                case SC_U:
+                    if(IS_SHIFT_DOWN)
+                        createMacroAscii(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD2, SC_NUMPAD0, keyMacro, keyMacroLength);
+                    else
+                        createMacroAscii(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD5, SC_NUMPAD2, keyMacro, keyMacroLength);
+                    break;
+                case SC_E:
+                    createMacroAscii(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD2, SC_NUMPAD8, keyMacro, keyMacroLength);
+                    break;
+                case SC_D:
+                    createMacroAscii(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD7, SC_NUMPAD6, keyMacro, keyMacroLength);
+                    break;
             }
-            capsToggled = false;
+            if(scancode != SC_LSHIFT && scancode != SC_RSHIFT)
+                capsToggled = false;
         }
 
         //SEND
@@ -274,11 +317,12 @@ int main()
                 cout << endl << "SEND MACRO (" << keyMacroLength << ")";
             for (int i = 0; i < keyMacroLength; i++)
             {
-                keyMacro[i].code &= 0x7F;
+                normalizeKeyStroke(keyMacro[i]);
+                if(keyMacro[i].code >127)
+                    cout << "ERRORR";
                 if (modeDebug)
                     cout << " " << keyMacro[i].code << ":" << keyMacro[i].state;
-                interception_send(context, device, (InterceptionStroke *)&keyMacro[i], 1);
-
+                sendStroke(context, device, keyMacro[i]);
             }
             if (modeDebug)
                 cout << endl;
@@ -286,24 +330,15 @@ int main()
         }
         else
         {
-            if (scancode >= 0x80)
-            {
-                stroke.state |= 2;
-                stroke.code = scancode & 0x7F;
-            }
-            else
-            {
-                stroke.code = scancode;
-                stroke.state &= 0xFD;
-            }
-
             if (modeDebug)
             {
                 cout << endl << " >" << hex << stroke.code << "/" << hex << scancode << " " << stroke.information << " " << stroke.state
                     << (blockKey ? " KEY IS BLOCKED " : "");
             }
-            if (!blockKey)
-                interception_send(context, device, (InterceptionStroke *)&stroke, 1);
+            if (!blockKey) {
+                scancode2stroke(scancode, stroke);
+                interception_send(context, device, (InterceptionStroke *) &stroke, 1);
+            }
         }
     }
 
@@ -311,6 +346,66 @@ int main()
 
     cout << endl << "bye" << endl;
     return 0;
+}
+
+void normalizeKeyStroke(InterceptionKeyStroke &stroke) {
+    if(stroke.code > 0x7F) {
+        stroke.code &=0x7F;
+        stroke.state |=2;
+    }
+}
+
+void scancode2stroke(unsigned short scancode,  InterceptionKeyStroke &istroke)
+{
+    if (scancode >= 0x80)
+    {
+        istroke.code = static_cast<unsigned short>(scancode & 0x7F);
+        istroke.state |= 2;
+    }
+    else
+    {
+        istroke.code = scancode;
+        istroke.state &= 0xFD;
+    }
+}
+
+void sendStroke(InterceptionContext context, InterceptionDevice device, InterceptionKeyStroke &stroke)
+{
+    interception_send(context, device, (InterceptionStroke *) &stroke, 1);
+}
+
+void resetAllModifiers(InterceptionContext context, InterceptionDevice device)
+{
+    if(modeDebug)
+        cout << endl << "Resetting all modifiers to UP" << endl;
+    InterceptionKeyStroke key;
+    key.code = SC_LSHIFT;
+    key.state = KEYSTATE_UP;
+    sendStroke(context, device, key);
+    key.code = SC_RSHIFT;
+    key.state = KEYSTATE_UP;
+    sendStroke(context, device, key);
+    key.code = SC_LCONTROL;
+    key.state = KEYSTATE_UP;
+    sendStroke(context, device, key);
+    key.code = SC_RCONTROL;
+    key.state = KEYSTATE_UP;
+    sendStroke(context, device, key);
+    key.code = SC_LALT;
+    key.state = KEYSTATE_UP;
+    sendStroke(context, device, key);
+    key.code = SC_RALT;
+    key.state = KEYSTATE_UP;
+    sendStroke(context, device, key);
+    key.code = SC_LWIN;
+    key.state = KEYSTATE_UP;
+    sendStroke(context, device, key);
+    key.code = SC_RWIN;
+    key.state = KEYSTATE_UP;
+    sendStroke(context, device, key);
+    key.code = SC_CAPS;
+    key.state = KEYSTATE_UP;
+    sendStroke(context, device, key);
 }
 
 //virtually push Alt+Numpad 0 1 2 4  for special characters
@@ -325,13 +420,12 @@ void createMacroAscii(int a, int b, int c, int d, InterceptionKeyStroke  keyMacr
         keyMacro[idx].code = fsc[i];
         keyMacro[idx++].state = KEYSTATE_DOWN;
         keyMacro[idx].code = fsc[i];
-        keyMacro[idx++].state = KEYSTATE_DOWN;
+        keyMacro[idx++].state = KEYSTATE_UP;
     }
     keyMacro[idx].code = SC_RALT;
     keyMacro[idx++].state = KEYSTATE_UP;
-    if (idx = 10)
-        keyMacroLength = idx;  //should always be 10
-    else
+    keyMacroLength = idx;  //should always be 10
+    if (idx != 10)
         cout << "ERROR: Wrong length of Ascii macro?";
 }
 
