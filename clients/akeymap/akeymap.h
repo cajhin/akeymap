@@ -1,5 +1,5 @@
-void createMacroAscii(int a, int b, int c, int d, InterceptionKeyStroke keyMacro[100], int &keyMacroLength);
-void createMacroKeypad(InterceptionKeyStroke  stroke, InterceptionKeyStroke  keyMacro[100], int &keyMacroLength);
+void createMacroAltNumpad(unsigned short a, unsigned short b, unsigned short c, unsigned short d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
+void createMacroNumpadNavigation(InterceptionKeyStroke stroke, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
 void scancode2stroke(unsigned short scancode,  InterceptionKeyStroke &istroke);
 
 #define BITMASK_LSHIFT 0x01
@@ -12,3 +12,4 @@ void scancode2stroke(unsigned short scancode,  InterceptionKeyStroke &istroke);
 #define BITMASK_RWIN 0x80
 
 #define IS_SHIFT_DOWN (modiState & 0x01 || modiState & 0x10)
+#define IS_LCONTROL_DOWN (modiState & 0x02)
