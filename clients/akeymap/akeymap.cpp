@@ -22,13 +22,9 @@ bool modeDebug = true;
 unsigned short modiState = 0;
 bool keysDownReceived[256];
 bool keysDownSent[256];
+string deviceIdKeyboard = "";
+bool deviceIsAppleKeyboard = false;
 
-
-void normalizeKeyStroke(InterceptionKeyStroke &keystroke);
-void printStatus();
-void reset(InterceptionContext context, InterceptionDevice device);
-void sendStroke(InterceptionContext context, InterceptionDevice device, InterceptionKeyStroke &stroke);
-void createMacroKeyCombo( int a, int b, int c, int d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
 
 string errorLog = " ";
 void error(string txt)
@@ -70,6 +66,7 @@ int main()
     InterceptionKeyStroke keyMacro[MAX_KEYMACRO_LENGTH];
     int keyMacroLength = 0;
     InterceptionKeyStroke tmpstroke;
+    wchar_t hardware_id[500];
 
     raise_process_priority();
     context = interception_create_context();
@@ -121,9 +118,15 @@ int main()
 
     while (interception_receive(context, device = interception_wait(context), (InterceptionStroke *)&stroke, 1) > 0)
     {
-#pragma region core commands
         bool blockKey = false;
-
+/*
+        if (deviceIdKeyboard=="")
+        {
+            getHardwareId(context, device);
+            modeFlipAltWin = !deviceIsAppleKeyboard;
+            cout << endl << deviceIsAppleKeyboard ? "APPLE keyboard" : "PC keyboard";
+        }
+        */
         if (stroke.code > 0xFF)
             error("Unexpected scancode > 255: ");
         else
@@ -132,6 +135,7 @@ int main()
         //normalize extended scancodes (state.bit1 -> code.bit7)
         unsigned short scancode = stroke.code;
 
+#pragma region core commands
         if (stroke.state & 2)  //extended code, so I set the high bit of the code. Assuming Interception never sends code > 0x7F
         {
             if (scancode & 0x80)
@@ -187,6 +191,7 @@ int main()
                 break;
             break;            
             case SC_S:
+                getHardwareId(context, device);
                 printStatus();
                 break;
             case SC_LALT:
@@ -207,7 +212,6 @@ int main()
             interception_send(context, device, (InterceptionStroke *)&stroke, 1);
             continue;
         }
-
 
         if(stroke.code == SC_CAPS) {
             if (stroke.state == KEYSTATE_UP) {
@@ -252,18 +256,21 @@ int main()
                         createMacroKeyCombo(SC_LCONTROL, SC_X, 0, 0, keyMacro, keyMacroLength);
                     break;
                 case SC_SPACE:
-                    if(isDownstroke) {
-                        if (IS_SHIFT_DOWN)
-                            createMacroKeyCombo(SC_LCONTROL, SC_X, 0, 0, keyMacro, keyMacroLength);
-                        else
-                            createMacroKeyCombo(SC_LCONTROL, SC_C, 0, 0, keyMacro, keyMacroLength);
-                    }
+                    if(isDownstroke) 
+                        createMacroKeyCombo(SC_LCONTROL, SC_C, 0, 0, keyMacro, keyMacroLength);
                     break;
                 case SC_C:
                     if(isDownstroke)
                         createMacroKeyCombo(SC_LCONTROL, SC_C, 0, 0, keyMacro, keyMacroLength);
                     break;
                 case SC_RETURN:
+                    if (isDownstroke) {
+                        if (IS_SHIFT_DOWN)
+                            createMacroKeyCombo(SC_LCONTROL, SC_X, 0, 0, keyMacro, keyMacroLength);
+                        else
+                            createMacroKeyCombo(SC_LCONTROL, SC_V, 0, 0, keyMacro, keyMacroLength);
+                    }
+                    break;
                 case SC_V:
                     if(isDownstroke)
                         createMacroKeyCombo(SC_LCONTROL, SC_V, 0, 0, keyMacro, keyMacroLength);
@@ -359,7 +366,7 @@ int main()
                     break;
                 case SC_A:
                     if(IS_SHIFT_DOWN)
-                        createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD9, SC_NUMPAD7, keyMacro, keyMacroLength);
+                        createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD9, SC_NUMPAD6, keyMacro, keyMacroLength);
                     else
                         createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD2, SC_NUMPAD8, keyMacro, keyMacroLength);
                     break;
@@ -369,11 +376,14 @@ int main()
                     else
                         createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD5, SC_NUMPAD2, keyMacro, keyMacroLength);
                     break;
+                case SC_S:
+                    createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD2, SC_NUMPAD3, keyMacro, keyMacroLength);
+                    break;
                 case SC_E:
                     createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD2, SC_NUMPAD8, keyMacro, keyMacroLength);
                     break;
                 case SC_D:
-                    createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD7, SC_NUMPAD6, keyMacro, keyMacroLength);
+                    createMacroAltNumpad(SC_NUMPAD1, SC_NUMPAD7, SC_NUMPAD6, 0, keyMacro, keyMacroLength);
                     break;
             }
             if(scancode != SC_LSHIFT && scancode != SC_RSHIFT)
@@ -422,6 +432,29 @@ int main()
     return 0;
 }
 
+void getHardwareId(const InterceptionContext &context, const InterceptionDevice &device)
+{
+    {
+        wchar_t  hardware_id[500];
+        string id;
+        size_t length = interception_get_hardware_id(context, device, hardware_id, sizeof(hardware_id));
+        if (length > 0 && length < sizeof(hardware_id))
+        {
+            wstring wid(hardware_id);
+            string sid(wid.begin(), wid.end());
+            id = sid;
+        }
+        else
+            id = "UNKNOWN_ID";
+
+        deviceIdKeyboard = id;
+        deviceIsAppleKeyboard = (id.find("VID_05AC") != string::npos);
+
+        if (modeDebug)
+            cout << endl << "getHardwareId:" << id <<" / Apple keyboard: " << deviceIsAppleKeyboard;
+    }
+}
+
 void printStatus()
 {
     int numMakeReceived = 0;
@@ -434,6 +467,8 @@ void printStatus()
             numMakeSent++;
     }
     cout << endl << endl << "::::STATUS::::" << endl
+        << "hardware id:" << deviceIdKeyboard << endl
+        << "Apple keyboard: " << deviceIsAppleKeyboard << endl
         << "modifier state: " << hex << modiState << endl
         << "# keys down received: " << numMakeReceived << endl
         << "# keys down sent: " << numMakeSent << endl
@@ -571,7 +606,6 @@ void createMacroAltNumpad(unsigned short a, unsigned short b, unsigned short c, 
         keyMacro[idx].code = SC_RSHIFT;
         keyMacro[idx++].state = KEYSTATE_UP;
     }
-
     keyMacro[idx].code = SC_RALT;
     keyMacro[idx++].state = KEYSTATE_DOWN;
     for (int i = 0; i < 4 && fsc[i] != 0; i++)
