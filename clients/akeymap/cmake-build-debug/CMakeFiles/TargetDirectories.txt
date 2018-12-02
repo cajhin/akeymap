@@ -1,3 +1,0 @@
-C:/wsl/home/git/Interception/clients/akeymap/cmake-build-debug/CMakeFiles/akeymap.dir
-C:/wsl/home/git/Interception/clients/akeymap/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/wsl/home/git/Interception/clients/akeymap/cmake-build-debug/CMakeFiles/rebuild_cache.dir
