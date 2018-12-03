@@ -8,6 +8,6 @@ USE_RTTI=1
 USE_STL=1
 386_STDCALL=0
 
-INCLUDES=..;..\..\library
+INCLUDES=..;..\..\library;
 TARGETLIBS=$(SDK_LIB_PATH)\user32.lib ..\..\library\objfre_win7_amd64\amd64\interception.lib
 SOURCES=utils.c capsicain.cpp

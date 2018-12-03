@@ -1,9 +1,9 @@
-#include <interception.h>
-#include <utils.h>
+#include <string>
+#include <iostream>
 #include <Windows.h>  //for Sleep()
 
-#include <iostream>
-#include <string>
+#include <interception.h>
+#include <utils.h>
 
 #include "scancodes.h"
 #include "capsicain.h"
@@ -47,19 +47,6 @@ void error(string txt)
 
 int main()
 {
-    /*
-    time_t timer;
-    char buffer[26];
-    struct tm* tm_info;
-
-    time(&timer);
-    tm_info = localtime(&timer);
-
-    strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
-    puts(buffer);
-    */
-
-
     const int MAX_KEYMACRO_LENGTH = 100;
 
     InterceptionContext context;
@@ -393,6 +380,7 @@ int main()
                 if (modeDebug)
                     cout << " " << keyMacro[i].code << ":" << keyMacro[i].state;
                 sendStroke(context, device, keyMacro[i]);
+                Sleep(2);  //Fullscreen RDP needs it for reliable copy paste
             }
             if (modeDebug)
                 cout << endl;
