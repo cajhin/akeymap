@@ -22,4 +22,5 @@ void createMacroKeyCombo(int a, int b, int c, int d, InterceptionKeyStroke *keyM
 
 #define IS_SHIFT_DOWN (modiState & 0x01 || modiState & 0x10)
 #define IS_LCONTROL_DOWN (modiState & 0x02)
+#define IS_LALT_DOWN (modiState & 0x04)
 
