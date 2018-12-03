@@ -228,8 +228,9 @@ int main()
                     scancode = SC_LSHIFT;
                 break;
             case SC_SLASH:
-                if (modeSlashShift && stroke.state < 2)  //do not remap keypad slash (state 2+3)
-                    scancode = SC_RSHIFT;
+                if(!capsDown && modeSlashShift)
+                    if (stroke.state < 2)  //do not remap keypad slash (state 2+3)
+                        scancode = SC_RSHIFT;
                 break;
             case SC_LWIN:
                 if (modeFlipAltWin)
@@ -255,7 +256,14 @@ int main()
             switch (scancode)
             {
             case SC_LSHIFT:
-                stroke.state & 1 ? modiState &= ~BITMASK_LSHIFT : modiState |= BITMASK_LSHIFT;
+                if (stroke.state & 1)
+                    modiState &= ~BITMASK_LSHIFT;
+                else
+                {
+                    modiState |= BITMASK_LSHIFT;
+                    if (IS_RSHIFT_DOWN)
+                        createMacroKeyCombo(SC_F15, SC_P, 0, 0, keyMacro, keyMacroLength);
+                }
                 break;
             case SC_RSHIFT:
                 if (stroke.state & 1)
@@ -263,8 +271,8 @@ int main()
                 else
                 {
                     modiState |= BITMASK_RSHIFT;
-                    if (capsDown)
-                        createMacroKeyCombo(SC_CAPS, 0, 0, 0, keyMacro, keyMacroLength);
+                    if (IS_LSHIFT_DOWN)  //LSHIFT + RSHIFT = CAPS
+                            createMacroKeyCombo(SC_F14, SC_P, 0, 0, keyMacro, keyMacroLength);
                 }
                 break;
             case SC_LALT:
@@ -541,7 +549,7 @@ void processCapsTapped(unsigned short scancode, InterceptionKeyStroke  keyMacro[
     }
 
     if (keyMacroLength == 0 && isDownstroke)
-    {
+    {                           
         switch (scancode) {
         case SC_0:
         case SC_1:
@@ -554,6 +562,9 @@ void processCapsTapped(unsigned short scancode, InterceptionKeyStroke  keyMacro[
         case SC_8:
         case SC_9:
             createMacroKeyCombo(SC_F15, scancode, 0, 0, keyMacro, keyMacroLength);
+            break;
+        case SC_P:
+            createMacroKeyCombo(SC_CAPS, 0, 0, 0, keyMacro, keyMacroLength);
             break;
         }
     }
