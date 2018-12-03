@@ -18,7 +18,14 @@ enum KEYSTATE
     KEYSTATE_EXT_UP = 3,
 };
 
-int version = 2;
+enum CREATE_CHARACTER_MODE
+{
+    IBM,   //alt + 123
+    ANSI,  //alt + 0123
+    AHK,   //F14|F15 + char, let AHK handle it
+};
+
+int version = 3;
 
 bool modeDebug = false;
 unsigned short modiState = 0;
@@ -27,6 +34,7 @@ bool keysDownSent[256];
 int  activeLayer = 1;
 string deviceIdKeyboard = "";
 bool deviceIsAppleKeyboard = false;
+CREATE_CHARACTER_MODE createCharacterMode = AHK;
 
 
 string errorLog = " ";
@@ -179,6 +187,21 @@ int main()
                 break;
             case SC_H:
                 printHelp();
+                break;
+            case SC_C:
+                switch (createCharacterMode)
+                {
+                case IBM:
+                    createCharacterMode = ANSI;
+                    break;
+                case ANSI:
+                    createCharacterMode = AHK;
+                    break;
+                case AHK:
+                    createCharacterMode = IBM;
+                    break;
+                }
+                cout << endl << "Character creation mode: " << createCharacterMode;
                 break;
             }
             continue;
@@ -350,50 +373,7 @@ int main()
         if (capsTapped) //TODO? this allows the keycode break later
         {
             bool isDownstroke = (stroke.state & 1) ? false : true;
-            switch (scancode)
-            {
-                case SC_O:
-                    if(IS_SHIFT_DOWN)
-                        createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD1, SC_NUMPAD4, keyMacro, keyMacroLength);
-                    else
-                        createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD4, SC_NUMPAD6, keyMacro, keyMacroLength);
-                    break;
-                case SC_A:
-                    if(IS_SHIFT_DOWN)
-                        createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD9, SC_NUMPAD6, keyMacro, keyMacroLength);
-                    else
-                        createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD2, SC_NUMPAD8, keyMacro, keyMacroLength);
-                    break;
-                case SC_U:
-                    if(IS_SHIFT_DOWN)
-                        createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD2, SC_NUMPAD0, keyMacro, keyMacroLength);
-                    else
-                        createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD5, SC_NUMPAD2, keyMacro, keyMacroLength);
-                    break;
-                case SC_S:
-                    createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD2, SC_NUMPAD3, keyMacro, keyMacroLength);
-                    break;
-                case SC_E:
-                    createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD2, SC_NUMPAD8, keyMacro, keyMacroLength);
-                    break;
-                case SC_D:
-                    createMacroAltNumpad(SC_NUMPAD1, SC_NUMPAD7, SC_NUMPAD6, 0, keyMacro, keyMacroLength);
-                    break;
-
-                case SC_0:
-                case SC_1:
-                case SC_2:
-                case SC_3:
-                case SC_4:
-                case SC_5:
-                case SC_6:
-                case SC_7:
-                case SC_8:
-                case SC_9:
-                    if (isDownstroke)
-                        createMacroKeyCombo(SC_F15, scancode, 0, 0, keyMacro, keyMacroLength);
-                    break;
-            }
+            processCapsTapped(scancode, keyMacro, keyMacroLength, isDownstroke);
             if(scancode != SC_LSHIFT && scancode != SC_RSHIFT)
                 capsTapped = false;
         }
@@ -440,6 +420,119 @@ int main()
     return 0;
 }
 
+/* Sending special character is no fun.
+   There are 3 createCharactermodes:
+   1. IBM classic: ALT + NUMPAD 3-digits. Supported by some apps.
+   2. ANSI: ALT + NUMPAD 4-digits. Supported by other apps, many Microsoft apps but not all.
+   3. AHK: Sends F14|F15 + 1 base character. Requires an AHK script that translates these comobos to characters.
+*/
+void processCapsTapped(unsigned short scancode, InterceptionKeyStroke  keyMacro[100], int &keyMacroLength, bool isDownstroke)
+{
+    if (createCharacterMode == IBM)
+    {
+        switch (scancode)
+        {
+        case SC_O:
+            if (IS_SHIFT_DOWN)
+                createMacroAltNumpad(SC_NUMPAD1, SC_NUMPAD5, SC_NUMPAD3, 0, keyMacro, keyMacroLength);
+            else
+                createMacroAltNumpad(SC_NUMPAD1, SC_NUMPAD4, SC_NUMPAD8, 0, keyMacro, keyMacroLength);
+            break;
+        case SC_A:
+            if (IS_SHIFT_DOWN)
+                createMacroAltNumpad(SC_NUMPAD1, SC_NUMPAD4, SC_NUMPAD2, 0, keyMacro, keyMacroLength);
+            else
+                createMacroAltNumpad(SC_NUMPAD1, SC_NUMPAD3, SC_NUMPAD2, 0, keyMacro, keyMacroLength);
+            break;
+        case SC_U:
+            if (IS_SHIFT_DOWN)
+                createMacroAltNumpad(SC_NUMPAD1, SC_NUMPAD5, SC_NUMPAD4, 0, keyMacro, keyMacroLength);
+            else
+                createMacroAltNumpad(SC_NUMPAD1, SC_NUMPAD2, SC_NUMPAD9, 0, keyMacro, keyMacroLength);
+            break;
+        case SC_S:
+            createMacroAltNumpad(SC_NUMPAD2, SC_NUMPAD2, SC_NUMPAD5, 0, keyMacro, keyMacroLength);
+            break;
+        case SC_E:
+            createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD2, SC_NUMPAD8, keyMacro, keyMacroLength);
+            break;
+        case SC_D:
+            createMacroAltNumpad(SC_NUMPAD1, SC_NUMPAD6, SC_NUMPAD7, 0, keyMacro, keyMacroLength);
+            break;
+        }
+    }
+    else if (createCharacterMode == ANSI)
+    {
+        switch (scancode)
+        {
+        case SC_O:
+            if (IS_SHIFT_DOWN)
+                createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD1, SC_NUMPAD4, keyMacro, keyMacroLength);
+            else
+                createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD4, SC_NUMPAD6, keyMacro, keyMacroLength);
+            break;
+        case SC_A:
+            if (IS_SHIFT_DOWN)
+                createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD9, SC_NUMPAD6, keyMacro, keyMacroLength);
+            else
+                createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD2, SC_NUMPAD8, keyMacro, keyMacroLength);
+            break;
+        case SC_U:
+            if (IS_SHIFT_DOWN)
+                createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD2, SC_NUMPAD0, keyMacro, keyMacroLength);
+            else
+                createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD5, SC_NUMPAD2, keyMacro, keyMacroLength);
+            break;
+        case SC_S:
+            createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD2, SC_NUMPAD2, SC_NUMPAD3, keyMacro, keyMacroLength);
+            break;
+        case SC_E:
+            createMacroAltNumpad(SC_NUMPAD0, SC_NUMPAD1, SC_NUMPAD2, SC_NUMPAD8, keyMacro, keyMacroLength);
+            break;
+        case SC_D:
+            createMacroAltNumpad(SC_NUMPAD1, SC_NUMPAD7, SC_NUMPAD6, 0, keyMacro, keyMacroLength);
+            break;
+        }
+    }
+    else if (createCharacterMode == AHK)
+    {
+        unsigned short ahkFCode = SC_F14;
+        if (IS_SHIFT_DOWN)
+            ahkFCode = SC_F15;
+
+        switch (scancode)
+        {
+        case SC_A:
+        case SC_O:
+        case SC_U:
+        case SC_S:
+        case SC_E:
+        case SC_D:
+        case SC_C:
+            createMacroKeyCombo(ahkFCode, scancode, 0, 0, keyMacro, keyMacroLength);
+            break;
+        }
+    }
+
+    if (keyMacroLength == 0 && isDownstroke)
+    {
+        switch (scancode) {
+        case SC_0:
+        case SC_1:
+        case SC_2:
+        case SC_3:
+        case SC_4:
+        case SC_5:
+        case SC_6:
+        case SC_7:
+        case SC_8:
+        case SC_9:
+            createMacroKeyCombo(SC_F15, scancode, 0, 0, keyMacro, keyMacroLength);
+            break;
+        }
+    }
+}
+
 void getHardwareId(const InterceptionContext &context, const InterceptionDevice &device)
 {
     {
@@ -476,6 +569,7 @@ void printHelp()
         << "E: Error log" << endl
         << "D: Debug mode output" << endl
         << "0..9: switch layers" << endl
+        << "C: switch character creation mode (Alt+Numpad or AHK)"
         ;
 }
 void printStatus()
@@ -495,6 +589,7 @@ void printStatus()
         << "Apple keyboard: " << deviceIsAppleKeyboard << endl
         << "current LAYER is: " << activeLayer << endl
         << "modifier state: " << hex << modiState << endl
+        << "character create mode: " << createCharacterMode << endl
         << "# keys down received: " << numMakeReceived << endl
         << "# keys down sent: " << numMakeSent << endl
         << (errorLog.length() > 1 ? "ERROR LOG contains entries" : "clean error log") << " (" << errorLog.length() << " chars)" << endl
@@ -618,6 +713,7 @@ void createMacroKeyCombo(int a, int b, int c, int d, InterceptionKeyStroke *keyM
 }
 
 //virtually push Alt+Numpad 0 1 2 4  for special characters
+//pass a b c 0 for 3-digit combos
 void createMacroAltNumpad(unsigned short a, unsigned short b, unsigned short c, unsigned short d, InterceptionKeyStroke *keyMacro, int &keyMacroLength)
 {
     unsigned short fsc[] = { a, b, c, d };

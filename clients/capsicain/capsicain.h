@@ -6,6 +6,7 @@ void normalizeKeyStroke(InterceptionKeyStroke &keystroke);
 void printStatus();
 void printHelp();
 void getHardwareId(const InterceptionContext &context, const InterceptionDevice &device);
+void processCapsTapped(unsigned short scancode, InterceptionKeyStroke  keyMacro[100], int &keyMacroLength, bool isDownstroke);
 void reset(InterceptionContext context, InterceptionDevice device);
 void sendStroke(InterceptionContext context, InterceptionDevice device, InterceptionKeyStroke &stroke);
 void createMacroKeyCombo(int a, int b, int c, int d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
