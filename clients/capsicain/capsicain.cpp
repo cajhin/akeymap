@@ -10,6 +10,8 @@
 
 using namespace std;
 
+int version = 4;
+
 enum KEYSTATE
 {
     KEYSTATE_DOWN = 0,
@@ -25,8 +27,6 @@ enum CREATE_CHARACTER_MODE
     AHK,   //F14|F15 + char, let AHK handle it
 };
 
-int version = 3;
-
 bool modeDebug = false;
 unsigned short modiState = 0;
 bool keysDownReceived[256];
@@ -37,11 +37,11 @@ bool deviceIsAppleKeyboard = false;
 CREATE_CHARACTER_MODE createCharacterMode = AHK;
 
 
-string errorLog = " ";
+string errorLog = "";
 void error(string txt)
 {
     if (modeDebug)
-        cout << endl << txt;
+        cout << endl << "ERROR: " << txt;
     errorLog += "\r\n" + txt;
 }
 
