@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -19,8 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\interception.h" />
-    <ClInclude Include="..\..\..\..\utils.h" />
+    <ClInclude Include="..\..\..\..\..\library\interception.h" />
+    <ClInclude Include="..\..\..\utils.h" />
     <ClInclude Include="..\..\..\capsicain.h" />
     <ClInclude Include="..\..\..\scancodes.h" />
   </ItemGroup>
@@ -81,10 +81,10 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <NMakeOutput>capsicain.exe</NMakeOutput>
     <NMakePreprocessorDefinitions>_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeIncludeSearchPath>C:\wsl\home\git\Interception\clients\capsicain;C:\wsl\home\git\Interception\library;C:\wsl\home\git\Interception\clients;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+    <NMakeIncludeSearchPath>$(SolutionDir)\..\..\..\..\clients\capsicain;$(SolutionDir)\..\..\..\..\\library;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
     <NMakeBuildCommandLine>C:\wsl\home\git\Interception\clients\capsicain\buildit.cmd</NMakeBuildCommandLine>
-    <IncludePath>C:\appWinDDK\7600.16385.1\inc\api;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
-    <SourcePath>C:\wsl\home\git\Interception\clients\capsicain;C:\wsl\home\git\Interception\clients;C:\wsl\home\git\Interception\library;$(SourcePath)</SourcePath>
+    <IncludePath>$(WDK)\inc\api\;C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.16.27023\include</IncludePath>
+    <SourcePath>$(SolutionDir)\..\..\..\..\clients\capsicain;$(SolutionDir)\..\..\..\..\\library;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <NMakeOutput>capsicain.exe</NMakeOutput>

@@ -1,16 +1,16 @@
-#include <interception.h>
-#include <utils.h>
+#include <string>
+#include <iostream>
 #include <Windows.h>  //for Sleep()
 
-#include <iostream>
-#include <string>
+#include <interception.h>
+#include <utils.h>
 
 #include "scancodes.h"
 #include "capsicain.h"
 
 using namespace std;
 
-int version = 4;
+int version = 5;
 
 enum KEYSTATE
 {
@@ -47,19 +47,6 @@ void error(string txt)
 
 int main()
 {
-    /*
-    time_t timer;
-    char buffer[26];
-    struct tm* tm_info;
-
-    time(&timer);
-    tm_info = localtime(&timer);
-
-    strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
-    puts(buffer);
-    */
-
-
     const int MAX_KEYMACRO_LENGTH = 100;
 
     InterceptionContext context;
@@ -102,6 +89,7 @@ int main()
     while (interception_receive(context, device = interception_wait(context), (InterceptionStroke *)&stroke, 1) > 0)
     {
         bool blockKey = false;
+        bool finalScancode = false;  //true -> don't remap the scancode anymore
 
         if (deviceIdKeyboard.length()<2)
         {
@@ -229,19 +217,94 @@ int main()
             continue;
         }
 
+        //remap modifiers
+        if(!finalScancode)
+        {
+            finalScancode = true;
+            switch (scancode)
+            {
+            case SC_LBSLASH:
+                if (modeSlashShift)
+                    scancode = SC_LSHIFT;
+                break;
+            case SC_SLASH:
+                if(!capsDown && modeSlashShift)
+                    if (stroke.state < 2)  //do not remap keypad slash (state 2+3)
+                        scancode = SC_RSHIFT;
+                break;
+            case SC_LWIN:
+                if (modeFlipAltWin)
+                    scancode = SC_LALT;
+                break;
+            case SC_RWIN:
+                if (modeFlipAltWin)
+                    scancode = SC_RALT;
+                break;
+            case SC_LALT:
+                if (modeFlipAltWin)
+                    scancode = SC_LWIN;
+                break;
+            case SC_RALT:
+                if (modeFlipAltWin)
+                    scancode = SC_LWIN;
+                break;
+            default:
+                finalScancode = false;
+            }
+
+            //modifier?
+            switch (scancode)
+            {
+            case SC_LSHIFT:
+                if (stroke.state & 1)
+                    modiState &= ~BITMASK_LSHIFT;
+                else
+                {
+                    modiState |= BITMASK_LSHIFT;
+                    if (IS_RSHIFT_DOWN)
+                        createMacroKeyCombo(SC_F15, SC_P, 0, 0, keyMacro, keyMacroLength);
+                }
+                break;
+            case SC_RSHIFT:
+                if (stroke.state & 1)
+                    modiState &= ~BITMASK_RSHIFT;
+                else
+                {
+                    modiState |= BITMASK_RSHIFT;
+                    if (IS_LSHIFT_DOWN)  //LSHIFT + RSHIFT = CAPS
+                            createMacroKeyCombo(SC_F14, SC_P, 0, 0, keyMacro, keyMacroLength);
+                }
+                break;
+            case SC_LALT:
+                if (stroke.state & 1)
+                {
+                    if (!(modiState & BITMASK_LALT))
+                        blockKey = true;
+                    modiState &= ~BITMASK_LALT;
+                }
+                else
+                {
+                    if (modiState & BITMASK_LALT)
+                        blockKey = true;
+                    if (capsDown)
+                        blockKey = true;
+                    modiState |= BITMASK_LALT;
+                }
+                break;
+            case SC_RALT:
+                stroke.state & 1 ? modiState &= ~BITMASK_RALT : modiState |= BITMASK_RALT;
+                break;
+            }
+        }
 
         // pass 3: layout-independent mappings
-        if (capsDown)
+        if (capsDown && !finalScancode)
         {
             //those suppress the key UP because DOWN is replaced with macro
             bool isDownstroke = (stroke.state & 1) ? false : true;
             bool blockingScancode = true;
             switch (scancode)
             {
-                case SC_RSHIFT:
-                    if(isDownstroke)
-                        createMacroKeyCombo(SC_CAPS, 0, 0, 0, keyMacro, keyMacroLength);
-                    break;
                 //Undo Redo Cut Copy Paste
                 case SC_BACK:
                     if(isDownstroke) {
@@ -314,61 +377,31 @@ int main()
             switch (scancode) {
             case SC_H:
                 scancode = SC_BACK;
+                finalScancode = true;
                 break;
             case SC_BACKSLASH:
                 scancode = SC_SLASH;
+                finalScancode = true;
                 break;
             }
         }
 
-        //not caps down, key remapping
-        else switch (scancode)
-            {
-                case SC_Z:
-                    if (modeFlipZy)
-                        scancode = SC_Y;
-                    break;
-                case SC_Y:
-                    if (modeFlipZy)
-                        scancode = SC_Z;
-                    break;
-                case SC_LBSLASH:
-                    if (modeSlashShift)
-                        scancode = SC_LSHIFT;
-                    break;
-                case SC_SLASH:
-                    if (modeSlashShift && stroke.state < 2)  //do not remap keypad slash (state 2+3)
-                        scancode = SC_RSHIFT;
-                    break;
-                case SC_LWIN:
-                    if (modeFlipAltWin)
-                        scancode = SC_LALT;
-                    break;
-                case SC_RWIN:
-                    if (modeFlipAltWin)
-                        scancode = SC_RALT;
-                    break;
-                case SC_LALT:
-                    if (modeFlipAltWin)
-                        scancode = SC_LWIN;
-                    break;
-                case SC_RALT:
-                    if (modeFlipAltWin)
-                        scancode = SC_LWIN;
-                    break;
-            }
-
-
-        switch(scancode)
+        //not caps down, remap character layout
+        else
         {
-            case SC_LSHIFT:
-                stroke.state & 1 ? modiState &= ~BITMASK_LSHIFT : modiState |= BITMASK_LSHIFT;
+            switch (scancode)
+            {
+            case SC_Z:
+                if (modeFlipZy)
+                    scancode = SC_Y;
                 break;
-            case SC_RSHIFT:
-                stroke.state & 1 ? modiState &= ~BITMASK_RSHIFT : modiState |= BITMASK_RSHIFT;
+            case SC_Y:
+                if (modeFlipZy)
+                    scancode = SC_Z;
                 break;
-
+            }
         }
+
 
         if (capsTapped) //TODO? this allows the keycode break later
         {
@@ -393,6 +426,7 @@ int main()
                 if (modeDebug)
                     cout << " " << keyMacro[i].code << ":" << keyMacro[i].state;
                 sendStroke(context, device, keyMacro[i]);
+                Sleep(2);  //Fullscreen RDP needs it for reliable copy paste
             }
             if (modeDebug)
                 cout << endl;
@@ -515,7 +549,7 @@ void processCapsTapped(unsigned short scancode, InterceptionKeyStroke  keyMacro[
     }
 
     if (keyMacroLength == 0 && isDownstroke)
-    {
+    {                           
         switch (scancode) {
         case SC_0:
         case SC_1:
@@ -528,6 +562,9 @@ void processCapsTapped(unsigned short scancode, InterceptionKeyStroke  keyMacro[
         case SC_8:
         case SC_9:
             createMacroKeyCombo(SC_F15, scancode, 0, 0, keyMacro, keyMacroLength);
+            break;
+        case SC_P:
+            createMacroKeyCombo(SC_CAPS, 0, 0, 0, keyMacro, keyMacroLength);
             break;
         }
     }
@@ -757,43 +794,51 @@ void createMacroAltNumpad(unsigned short a, unsigned short b, unsigned short c, 
 void createMacroNumpadNavigation(InterceptionKeyStroke stroke, InterceptionKeyStroke *keyMacro, int &keyMacroLength)
 {
     unsigned short keypadCode = 0;
-    bool controlDown = false;
+    bool makeControlDown = false;
+    int repeat = 1;
+    int NREPEAT = IS_LALT_DOWN ? 10 : repeat;
+
     switch (stroke.code)
     {
-    case SC_J: keypadCode = SC_NUMPAD4; break;
-    case SC_L: keypadCode = SC_NUMPAD6; break;
-    case SC_K: keypadCode = SC_NUMPAD2; break;
-    case SC_I: keypadCode = SC_NUMPAD8;
-        break;
+    case SC_J: keypadCode = SC_NUMPAD4; repeat = NREPEAT; break;
+    case SC_L: keypadCode = SC_NUMPAD6; repeat = NREPEAT; break;
+    case SC_K: keypadCode = SC_NUMPAD2; repeat = NREPEAT; break;
+    case SC_I: keypadCode = SC_NUMPAD8; repeat = NREPEAT; break;
     case SC_SEMICOLON: keypadCode = SC_NUMPAD_DOT; break;
-    case SC_O: keypadCode = SC_NUMPAD9; break;
-    case SC_DOT: keypadCode = SC_NUMPAD3; break;
+    case SC_O: keypadCode = SC_NUMPAD9; repeat = NREPEAT; break;
+    case SC_DOT: keypadCode = SC_NUMPAD3; repeat = NREPEAT; break;
     case SC_Y: keypadCode = SC_NUMPAD7; break;
     case SC_U: keypadCode = SC_NUMPAD1; break;
-    case SC_N: keypadCode = SC_NUMPAD4; controlDown = true;  break;
-    case SC_M: keypadCode = SC_NUMPAD6; controlDown = true; break;
+    case SC_N: keypadCode = SC_NUMPAD4; makeControlDown = true;  break;
+    case SC_M: keypadCode = SC_NUMPAD6; makeControlDown = true; break;
     }
+
     int n = -1;
+
     if (IS_LCONTROL_DOWN)
-        controlDown = false;
-    if (controlDown )
+        makeControlDown = false;
+    if (makeControlDown )
     {
         keyMacro[++n].code = SC_LCONTROL;
         keyMacro[n].state = KEYSTATE_DOWN;
     }
     keyMacro[++n].code = SC_LSHIFT;
     keyMacro[n].state = KEYSTATE_EXT_DOWN;
-    keyMacro[++n].code = keypadCode;
-    keyMacro[n].state = KEYSTATE_EXT_DOWN;
-    keyMacro[++n].code = keypadCode;
-    keyMacro[n].state = KEYSTATE_EXT_UP;
+    for (int i = 0; i < repeat; i++)
+    {
+        keyMacro[++n].code = keypadCode;
+        keyMacro[n].state = KEYSTATE_EXT_DOWN;
+        keyMacro[++n].code = keypadCode;
+        keyMacro[n].state = KEYSTATE_EXT_UP;
+    }
     keyMacro[++n].code = SC_LSHIFT;
     keyMacro[n].state = KEYSTATE_EXT_UP;
-    if (controlDown)
+    if (makeControlDown)
     {
         keyMacro[++n].code = SC_LCONTROL;
         keyMacro[n].state = KEYSTATE_UP;
     }
+
     keyMacroLength = n + 1;
 }
 
