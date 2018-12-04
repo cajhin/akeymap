@@ -29,6 +29,12 @@
     <ClCompile Include="..\..\..\utils.c" />
     <ClCompile Include="..\..\..\capsicain.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\..\..\capsicain.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\..\..\icon.ico" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{6BFBC7BA-443D-4E14-993D-1BFA30562729}</ProjectGuid>

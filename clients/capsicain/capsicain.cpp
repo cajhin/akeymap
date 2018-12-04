@@ -10,7 +10,7 @@
 
 using namespace std;
 
-int version = 5;
+string version = "6";
 
 enum KEYSTATE
 {
@@ -45,8 +45,27 @@ void error(string txt)
     errorLog += "\r\n" + txt;
 }
 
+
+void SetupConsoleWindow() {
+
+    //disable quick edit
+    HANDLE Handle = GetStdHandle(STD_INPUT_HANDLE);      // Get Handle
+    DWORD mode;
+    GetConsoleMode(Handle, &mode);
+    mode &= ~ENABLE_QUICK_EDIT_MODE;
+    mode &= ~ENABLE_MOUSE_INPUT;
+    SetConsoleMode(Handle, mode);
+
+    system("color 8E");  //byte1=background, byte2=text
+    SetConsoleTitle(("Capsicain v"+version).c_str());
+
+
+}
+
 int main()
 {
+    SetupConsoleWindow();
+
     const int MAX_KEYMACRO_LENGTH = 100;
 
     InterceptionContext context;
