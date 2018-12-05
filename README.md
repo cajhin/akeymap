@@ -12,8 +12,8 @@ Features:
     [H]['] = Backspace/Delete
     [N][M] = Ctrl+Left/Right
     [=] = Insert
-    P[] = Print/ScrLock/Pause
-    ALT+Cursor = 10 times
+    [P][[][]] = Print/ScrLock/Pause
+    [ALT]+[Cursor] = 10 times
 - CapsLock -> Clipboard functions
     [S][D][F] = Cut/Copy/Paste
     [Backspace] = Undo
