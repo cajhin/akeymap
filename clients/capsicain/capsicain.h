@@ -1,15 +1,15 @@
 void createMacroAltNumpad(unsigned short a, unsigned short b, unsigned short c, unsigned short d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
-void createMacroNumpadNavigation(InterceptionKeyStroke stroke, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
-void scancode2stroke(unsigned short scancode,  InterceptionKeyStroke &istroke);
+void createMacroKeyCombo(int a, int b, int c, int d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
+void createMacroKeyComboRemoveShift(int a, int b, int c, int d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
+void processCapsTapped(unsigned short scancode, InterceptionKeyStroke  keyMacro[100], int &keyMacroLength);
 
+void scancode2stroke(unsigned short scancode,  InterceptionKeyStroke &istroke);
 void normalizeKeyStroke(InterceptionKeyStroke &keystroke);
 void printStatus();
 void printHelp();
 void getHardwareId(const InterceptionContext &context, const InterceptionDevice &device);
-void processCapsTapped(unsigned short scancode, InterceptionKeyStroke  keyMacro[100], int &keyMacroLength, bool isDownstroke);
 void reset(InterceptionContext context, InterceptionDevice device);
 void sendStroke(InterceptionContext context, InterceptionDevice device, InterceptionKeyStroke &stroke);
-void createMacroKeyCombo(int a, int b, int c, int d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
 
 #define BITMASK_LSHIFT 0x01
 #define BITMASK_RSHIFT 0x10
