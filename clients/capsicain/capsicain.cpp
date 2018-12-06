@@ -10,7 +10,7 @@
 
 using namespace std;
 
-string version = "8";
+string version = "9";
 
 enum KEYSTATE
 {
@@ -27,6 +27,10 @@ enum CREATE_CHARACTER_MODE
     AHK,   //F14|F15 + char, let AHK handle it
 };
 
+const int MAX_KEYMACRO_LENGTH = 10000;  //for testing; in real life, 100 keys = 200 up/downs should be enough
+const int MIN_DELAY_SENDMACRO = 1; // all regular keys
+const int DEFAULT_DELAY_SENDMACRO = 10; //now only used for LALT, F14, F15
+
 bool modeDebug = false;
 unsigned short modiState = 0;
 bool keysDownReceived[256];
@@ -40,11 +44,9 @@ CREATE_CHARACTER_MODE characterCreationMode = IBM;
 string errorLog = "";
 void error(string txt)
 {
-    if (modeDebug)
-        cout << endl << "ERROR: " << txt;
+    cout << endl << "ERROR: " << txt;
     errorLog += "\r\n" + txt;
 }
-
 
 void SetupConsoleWindow() {
 
@@ -64,8 +66,6 @@ int main()
 {
     SetupConsoleWindow();
 
-    const int MAX_KEYMACRO_LENGTH = 100;
-
     InterceptionContext context;
     InterceptionDevice device;
     InterceptionKeyStroke stroke, previousStroke;
@@ -77,9 +77,10 @@ int main()
     bool capsDown = false;
     bool capsTapped = false;
 
+    unsigned int delayBetweenMacroKeysMS = DEFAULT_DELAY_SENDMACRO;  //AHK drops keys when they are sent too fast
+
     InterceptionKeyStroke keyMacro[MAX_KEYMACRO_LENGTH];
-    int keyMacroLength;
-    InterceptionKeyStroke tmpstroke;
+    int keyMacroLength;  // >0 triggers sending of macro instead of scancode. MUST match the actual # of chars in keyMacro
     wchar_t hardware_id[500];
 
 #pragma region setup
@@ -89,8 +90,8 @@ int main()
     interception_set_filter(context, interception_is_keyboard, INTERCEPTION_FILTER_KEY_ALL);
 
     cout << "Capsicain v" << version << endl << endl
-         << "(LCTRL + CAPS + ESC) to stop." << endl
-         << "(LCTRL + CAPS + H) for Help";
+         << "[LCTRL] + [CAPS] + [ESC] to stop." << endl
+         << "[LCTRL] + [CAPS] + [H] for Help";
 
     {
         cout << endl << endl << (modeSlashShift ? "ON :" : "OFF:") << "Slashes -> Shift ";
@@ -104,11 +105,12 @@ int main()
 
     while (interception_receive(context, device = interception_wait(context), (InterceptionStroke *)&stroke, 1) > 0)
     {
-        bool blockKey = false;
-        bool isFinalScancode = false;  //true -> don't remap the scancode anymore
+        bool blockKey = false;  //true: do not send the current key
+        bool isFinalScancode = false;  //true: don't remap the scancode anymore
         bool isDownstroke = false;
         bool isExtendedCode = false;
         keyMacroLength = 0;
+
 
         //check device ID
         if (deviceIdKeyboard.length()<2)
@@ -144,13 +146,18 @@ int main()
         //command stroke: LCTRL + CAPS + stroke
 
         //TODO: double-check that caps and lcontrol are never left hanging on down, from Windows point of view
-        if (isDownstroke && keysDownReceived[SC_CAPS] && keysDownReceived[SC_LCONTROL])
+        if  (isDownstroke 
+            && (scancode != SC_CAPS && scancode != SC_LCONTROL) 
+            && (keysDownReceived[SC_CAPS] && keysDownReceived[SC_LCONTROL])
+            )
         {
             if (scancode == SC_ESCAPE)
             {
-                break;  //break the main while() loop
+                break;  //break the main while() loop, exit
             }
+
             cout << endl << endl << "::";
+
             switch (scancode)
             {
             case SC_0:
@@ -213,7 +220,21 @@ int main()
                 }
                 cout << "Character creation mode: " << characterCreationMode;
                 break;
+            case SC_LBRACKET:
+                if (delayBetweenMacroKeysMS >= 1)
+                    delayBetweenMacroKeysMS -= 1;
+                cout << "delay between characters in macros (ms): " << dec << delayBetweenMacroKeysMS;
+                break;
+            case SC_RBRACKET:
+                if (delayBetweenMacroKeysMS <= 100)
+                    delayBetweenMacroKeysMS += 1;
+                cout << "delay between characters in macros (ms): " << dec << delayBetweenMacroKeysMS;
+                break;
+            default:
+                cout << "Unknown command";
+                break;
             }
+            
             continue;
         }
 #pragma endregion core commands
@@ -274,7 +295,7 @@ int main()
                 break;
             case SC_RALT:
                 if (modeFlipAltWin)
-                    scancode = SC_LWIN;
+                    scancode = SC_RWIN;
                 break;
             default:
                 isFinalScancode = false;
@@ -283,7 +304,7 @@ int main()
             //evaluate and remember modifiers
             switch (scancode)
             {
-            case SC_LSHIFT:
+            case SC_LSHIFT:  //handle LShift+RShift -> CapsLock
                 if (isDownstroke)
                 {
                     modiState |= BITMASK_LSHIFT;
@@ -336,7 +357,7 @@ int main()
                 break;
             }
             if (modeDebug)
-                cout << " {" << hex << modiState << (capsDown ? " C" : " _") << (capsTapped ? "T" : "_") << "} ";
+                cout << " [" << hex << modiState << (capsDown ? " C" : " _") << (capsTapped ? "T" : "_") << "] ";
         }
 
         // pass 3: layout-independent mappings
@@ -450,7 +471,7 @@ int main()
 
             if (blockingScancode)
                 blockKey = true;
-            else
+            else  //direct key remapping without macros
             {
                 switch (scancode)
                 {
@@ -472,19 +493,19 @@ int main()
             switch (scancode)
             {
             case SC_Z:
-                if (modeFlipZy && !IS_LCONTROL_DOWN)
+                if (modeFlipZy && !IS_LCONTROL_DOWN) //do not remap LCTRL+Z/Y (undo/redo)
                     scancode = SC_Y;
                 break;
             case SC_Y:
-                if (modeFlipZy)  //do not remap LCTRL+Y (undo)
+                if (modeFlipZy && !IS_LCONTROL_DOWN)  
                     scancode = SC_Z;
                 break;
             }
         }
 
-        if (capsTapped)
+        if (capsTapped) //so far, all caps tap actions are layout dependent (tap+A moves when A moves)
         {
-            if (scancode != SC_LSHIFT && scancode != SC_RSHIFT)
+            if (scancode != SC_LSHIFT && scancode != SC_RSHIFT)  //shift does not break the tapped status so I can type äÄ
             {
                 if(isDownstroke)
                     processCapsTapped(scancode, keyMacro, keyMacroLength);
@@ -508,7 +529,13 @@ int main()
                 if (modeDebug)
                     cout << " " << keyMacro[i].code << ":" << keyMacro[i].state;
                 sendStroke(context, device, keyMacro[i]);
-                Sleep(10);  //TODO ; AHK Fullscreen RDP needs it for reliable key up recognition
+                if (stroke.code == SC_LALT
+                    || stroke.code == SC_F14
+                    || stroke.code == SC_F15
+                    )
+                    Sleep(delayBetweenMacroKeysMS);  //TODO ; AHK Fullscreen RDP needs it for reliable key up recognition
+                else
+                    Sleep(MIN_DELAY_SENDMACRO);
             }
         }
         else
@@ -574,6 +601,72 @@ void processCapsTapped(unsigned short scancode, InterceptionKeyStroke  keyMacro[
         case SC_D:
             createMacroAltNumpad(SC_NUMPAD1, SC_NUMPAD6, SC_NUMPAD7, 0, keyMacro, keyMacroLength);
             break;
+        case SC_T: // test
+        {
+            int idx = 0;
+            for (unsigned short i = 2; i <= 0x1C; i++) //from [1] to [Enter]
+            {
+                keyMacro[idx].code = i;
+                keyMacro[idx].state = KEYSTATE_DOWN;
+                idx++;
+                keyMacro[idx].code = i;
+                keyMacro[idx].state = KEYSTATE_UP;
+                idx++;
+            }
+            keyMacroLength = idx;
+            break;
+        }
+        case SC_R: // test2: print 50x10 ä
+        {
+            int idx = 0;
+
+            for (int outer = 0; outer < 10; outer++)
+            {
+                for (unsigned short i = 0; i < 50; i++)
+                {
+
+                    keyMacro[idx].code = SC_LALT;
+                    keyMacro[idx].state = KEYSTATE_DOWN;
+                    idx++;
+
+                    keyMacro[idx].code = SC_NUMPAD1;
+                    keyMacro[idx].state = KEYSTATE_DOWN;
+                    idx++;
+                    keyMacro[idx].code = SC_NUMPAD1;
+                    keyMacro[idx].state = KEYSTATE_UP;
+                    idx++;
+
+                    keyMacro[idx].code = SC_NUMPAD3;
+                    keyMacro[idx].state = KEYSTATE_DOWN;
+                    idx++;
+                    keyMacro[idx].code = SC_NUMPAD3;
+                    keyMacro[idx].state = KEYSTATE_UP;
+                    idx++;
+
+                    keyMacro[idx].code = SC_NUMPAD2;
+                    keyMacro[idx].state = KEYSTATE_DOWN;
+                    idx++;
+                    keyMacro[idx].code = SC_NUMPAD2;
+                    keyMacro[idx].state = KEYSTATE_UP;
+                    idx++;
+
+                    keyMacro[idx].code = SC_LALT;
+                    keyMacro[idx].state = KEYSTATE_UP;
+                    idx++;
+
+                }
+
+                keyMacro[idx].code = SC_RETURN;
+                keyMacro[idx].state = KEYSTATE_DOWN;
+                idx++;
+                keyMacro[idx].code = SC_RETURN;
+                keyMacro[idx].state = KEYSTATE_UP;
+                idx++;
+            }
+
+            keyMacroLength = idx;
+            break;
+        }
         }
     }
     else if (characterCreationMode == ANSI)
@@ -672,17 +765,18 @@ void getHardwareId(const InterceptionContext &context, const InterceptionDevice 
 void printHelp()
 {
     cout << "HELP" << endl << endl
-        << "Press (LEFTCTRL + CAPS + key) for core commands" << endl
-        << "ESC: quit" << endl
-        << "S: Status" << endl
-        << "R: Reset" << endl
-        << "Z: (or Y on GER keyboard): flip Y<>Z keys" << endl
-        << "W: flip ALT <> WIN" << endl
-        << "SLASH: (or - on GER keyboard): slash -> Shift" << endl
-        << "E: Error log" << endl
-        << "D: Debug mode output" << endl
-        << "0..9: switch layers" << endl
-        << "C: switch character creation mode (Alt+Numpad or AHK)"
+        << "[LEFTCTRL] + [CAPS] + [{key}] for core commands" << endl
+        << "[ESC] quit" << endl
+        << "[S] Status" << endl
+        << "[R] Reset" << endl
+        << "[E] Error log" << endl
+        << "[D] Debug mode output" << endl
+        << "[0]..[9] switch layers" << endl
+        << "[Z] (or Y on GER keyboard): flip Y<>Z keys" << endl
+        << "[W] flip ALT <> WIN" << endl
+        << "[/] (is [-] on GER keyboard): Slash -> Shift" << endl
+        << "[C] switch character creation mode (Alt+Numpad or AHK)" << endl
+        << "[ and ]: pause between macro keys sent -/+ 10ms " << endl
         ;
 }
 void printStatus()
@@ -696,7 +790,7 @@ void printStatus()
         if (keysDownSent[i])
             numMakeSent++;
     }
-    cout << endl << "STATUS" << endl << endl
+    cout << "STATUS" << endl << endl
         << "Capsicain version: " << version << endl
         << "hardware id:" << deviceIdKeyboard << endl
         << "Apple keyboard: " << deviceIsAppleKeyboard << endl
@@ -851,7 +945,7 @@ void createMacroAltNumpad(unsigned short a, unsigned short b, unsigned short c, 
         keyMacro[idx].code = SC_RSHIFT;
         keyMacro[idx++].state = KEYSTATE_UP;
     }
-    keyMacro[idx].code = SC_RALT;
+    keyMacro[idx].code = SC_LALT;
     keyMacro[idx++].state = KEYSTATE_DOWN;
     for (int i = 0; i < 4 && fsc[i] != 0; i++)
     {
@@ -860,7 +954,7 @@ void createMacroAltNumpad(unsigned short a, unsigned short b, unsigned short c, 
         keyMacro[idx].code = fsc[i];
         keyMacro[idx++].state = KEYSTATE_UP;
     }
-    keyMacro[idx].code = SC_RALT;
+    keyMacro[idx].code = SC_LALT;
     keyMacro[idx++].state = KEYSTATE_UP;
     if (rshift)
     {
