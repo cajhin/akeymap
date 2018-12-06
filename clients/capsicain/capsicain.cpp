@@ -10,7 +10,7 @@
 
 using namespace std;
 
-string version = "7";
+string version = "8";
 
 enum KEYSTATE
 {
@@ -58,8 +58,6 @@ void SetupConsoleWindow() {
 
     system("color 8E");  //byte1=background, byte2=text
     SetConsoleTitle(("Capsicain v"+version).c_str());
-
-
 }
 
 int main()
