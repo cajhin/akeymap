@@ -1,14 +1,20 @@
-void createMacroAltNumpad(unsigned short a, unsigned short b, unsigned short c, unsigned short d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
+void makeKeyMacro(unsigned short scancode, InterceptionKeyStroke * keyMacro, int & keyMacroLength);
+void breakKeyMacro(unsigned short scancode, InterceptionKeyStroke * keyMacro, int & keyMacroLength);
+void makeBreakKeyMacro(unsigned short scancode, InterceptionKeyStroke * keyMacro, int & keyMacroLength);
+
 void createMacroKeyCombo(int a, int b, int c, int d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
 void createMacroKeyComboRemoveShift(int a, int b, int c, int d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
+void createMacroAltNumpad(unsigned short a, unsigned short b, unsigned short c, unsigned short d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
 void processCapsTapped(unsigned short scancode, InterceptionKeyStroke  keyMacro[100], int &keyMacroLength);
+
+void playMacro(InterceptionKeyStroke  keyMacro[], int keyMacroLength, const InterceptionContext &context, const InterceptionDevice &device);
 
 void scancode2stroke(unsigned short scancode,  InterceptionKeyStroke &istroke);
 void normalizeKeyStroke(InterceptionKeyStroke &keystroke);
 void printStatus();
 void printHelp();
 void getHardwareId(const InterceptionContext &context, const InterceptionDevice &device);
-void reset(InterceptionContext context, InterceptionDevice device);
+void reset(InterceptionKeyStroke  keyMacro[], int keyMacroLength, InterceptionContext context, InterceptionDevice device);
 void sendStroke(InterceptionContext context, InterceptionDevice device, InterceptionKeyStroke &stroke);
 
 #define BITMASK_LSHIFT 0x01
