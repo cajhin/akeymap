@@ -1,22 +1,37 @@
-void makeKeyMacro(unsigned short scancode, InterceptionKeyStroke * keyMacro, int & keyMacroLength);
-void breakKeyMacro(unsigned short scancode, InterceptionKeyStroke * keyMacro, int & keyMacroLength);
-void makeBreakKeyMacro(unsigned short scancode, InterceptionKeyStroke * keyMacro, int & keyMacroLength);
+void makeKeyMacro(unsigned short scancode);
+void breakKeyMacro(unsigned short scancode);
+void makeBreakKeyMacro(unsigned short scancode);
 
-void createMacroKeyCombo(int a, int b, int c, int d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
-void createMacroKeyComboRemoveShift(int a, int b, int c, int d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
-void createMacroAltNumpad(unsigned short a, unsigned short b, unsigned short c, unsigned short d, InterceptionKeyStroke *keyMacro, int &keyMacroLength);
-void processCapsTapped(unsigned short scancode, InterceptionKeyStroke  keyMacro[100], int &keyMacroLength);
+void createMacroKeyCombo(int a, int b, int c, int d);
+void createMacroKeyComboRemoveShift(int a, int b, int c, int d);
+void createMacroKeyCombo10timesIfAltDown(int a, int b, int c, int d, unsigned short modifiers);
+void createMacroKeyComboNtimes(int a, int b, int c, int d, int repeat);
 
-void playMacro(InterceptionKeyStroke  keyMacro[], int keyMacroLength, const InterceptionContext &context, const InterceptionDevice &device);
+void createMacroAltNumpad(unsigned short a, unsigned short b, unsigned short c, unsigned short d);
+void processCapsTapped(unsigned short scancode);
+
+void playMacro(const InterceptionContext &context, const InterceptionDevice &device);
+
+void processCoreCommands(unsigned short scancode, InterceptionContext &context, InterceptionDevice &device, bool &isCapsDown, bool &isCapsTapped, bool &modeFlipAltWin, bool &modeSlashShift, bool &modeFlipZy);
+
+void processRemapModifiers(bool &isFinalScancode, unsigned short &scancode, bool modeSlashShift, bool isCapsDown, bool modeFlipAltWin);
+
+void processTrackModifierState(unsigned short scancode, bool isDownstroke, bool isCapsDown, bool &blockKey);
+
+void processCapsDownAction(unsigned short &scancode, bool isDownstroke, bool &blockKey, bool &isFinalScancode);
+
+void processRemapCharacterLayout(unsigned short &scancode, bool modeFlipZy);
 
 void scancode2stroke(unsigned short scancode,  InterceptionKeyStroke &istroke);
 void normalizeKeyStroke(InterceptionKeyStroke &keystroke);
-void printStatus();
-void printHelp();
 void getHardwareId(const InterceptionContext &context, const InterceptionDevice &device);
-void reset(InterceptionKeyStroke  keyMacro[], int keyMacroLength, InterceptionContext context, InterceptionDevice device);
 void sendStroke(InterceptionContext context, InterceptionDevice device, InterceptionKeyStroke &stroke);
 
+void printStatus();
+void printHelp();
+void reset(InterceptionContext context, InterceptionDevice device);
+
+#define IFDEBUG if(modeDebug) 
 #define BITMASK_LSHIFT 0x01
 #define BITMASK_RSHIFT 0x10
 #define BITMASK_LCONTROL 0x02
